@@ -21,6 +21,7 @@ public class WebhooksManager {
         static final String BUILD_STARTED = "BUILD_STARTED";
         static final String BUILD_FINISHED = "BUILD_FINISHED";
         static final String BUILD_INTERRUPTED = "BUILD_INTERRUPTED";
+        static final String CHANGES_LOADED = "CHANGES_LOADED";
     }
 
     public WebhooksManager(PluginLifecycleEventDispatcher dispatcher,
@@ -29,7 +30,7 @@ public class WebhooksManager {
                            WebhooksEventListener eventListener) {
 
         asyncEventDispatcher.subscribe(Arrays.asList(AGENT_REGISTRED, AGENT_UNREGISTERED, AGENT_REMOVED
-                , BUILD_STARTED, BUILD_FINISHED, BUILD_INTERRUPTED), eventListener);
+                , BUILD_STARTED, BUILD_FINISHED, BUILD_INTERRUPTED, CHANGES_LOADED), eventListener);
 
         dispatcher.addListener(new PluginLifecycleListenerAdapter() {
             @Override
@@ -67,6 +68,11 @@ public class WebhooksManager {
             @Override
             public void buildInterrupted(@NotNull SRunningBuild build) {
                 asyncEventDispatcher.publish(new AsyncEvent(BUILD_INTERRUPTED, build.getBuildPromotion().getId(), build.getProjectId()));
+            }
+
+            @Override
+            public void changesLoaded(@NotNull SRunningBuild build) {
+                asyncEventDispatcher.publish(new AsyncEvent(CHANGES_LOADED, build.getBuildPromotion().getId(), build.getProjectId()));
             }
         });
     }

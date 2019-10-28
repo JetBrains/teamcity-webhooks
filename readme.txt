@@ -19,6 +19,9 @@
     - teamcity.internal.webhooks.events : list of events whose occurrence will trigger web hooks sending.
         Possible values: AGENT_REGISTRED, AGENT_UNREGISTERED, AGENT_REMOVED, BUILD_STARTED, BUILD_FINISHED, BUILD_INTERRUPTED. Should be separated by ";"
     - teamcity.internal.webhooks.url : url to send web hooks by HTTP POST request
+    - teamcity.internal.webhooks.{event_name}.fields : list of fields are supposed to be return in web hook for specific event in Team City REST-API format.
+        Example value:  teamcity.internal.webhooks.BUILD_STARTED.fields =
+                        "fields=id,buildTypeId,number,running-info(percentageComplete,elapsedSeconds,estimatedTotalSeconds,leftSeconds,currentStageText)"
     Http Basic Auth parameters:
     - teamcity.internal.webhooks.username : username
     - teamcity.internal.webhooks.password : password (keep in password type parameter)

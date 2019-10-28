@@ -4,16 +4,17 @@ import jetbrains.buildServer.util.ThreadUtil;
 import jetbrains.buildServer.webhook.async.events.AsyncEvent;
 import org.junit.After;
 import org.junit.Test;
-import java.util.ArrayList;
+
 import java.util.concurrent.*;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class OrderedExecutorTest {
 
     private OrderedExecutor executor;
-    private ArrayList<Long> completedTasks = new ArrayList<>();
+    private CopyOnWriteArrayList<Long> completedTasks = new CopyOnWriteArrayList<>();
     private final String KEY = "key";
 
     private final BiConsumer<AsyncEvent, Integer> asyncEventConsumer = (event, timeout) -> {
@@ -37,9 +38,9 @@ public class OrderedExecutorTest {
 
         ThreadUtil.sleep(600);
 
-        assertEquals(completedTasks.get(0), 1);
-        assertEquals(completedTasks.get(1), 2);
-        assertEquals(completedTasks.get(2), 3);
+        assertEquals(1, completedTasks.get(0));
+        assertEquals(2, completedTasks.get(1));
+        assertEquals(3, completedTasks.get(2));
     }
 
     @Test
@@ -52,9 +53,9 @@ public class OrderedExecutorTest {
 
         ThreadUtil.sleep(2000);
 
-        assertEquals(completedTasks.get(0), 1);
-        assertEquals(completedTasks.get(1), 2);
-        assertEquals(completedTasks.get(2), 3);
+        assertEquals(1, completedTasks.get(0));
+        assertEquals(2, completedTasks.get(1));
+        assertEquals(3, completedTasks.get(2));
     }
 
     @Test
@@ -69,11 +70,52 @@ public class OrderedExecutorTest {
 
         ThreadUtil.sleep(1000);
 
-        assertEquals(completedTasks.get(0), 1);
-        assertEquals(completedTasks.get(1), 2);
-        assertEquals(completedTasks.get(2), 3);
-        assertEquals(completedTasks.get(3), 4);
-        assertEquals(completedTasks.get(4), 5);
+        assertEquals(1, completedTasks.get(0));
+        assertEquals(2, completedTasks.get(1));
+        assertEquals(3, completedTasks.get(2));
+        assertEquals(4, completedTasks.get(3));
+        assertEquals(5, completedTasks.get(4));
+    }
+
+    @Test
+    public void executeAllTasksInInternalExecutorBeforeShutdown() {
+        this.executor = new OrderedExecutor();
+        this.executor.execute(e -> asyncEventConsumer.accept(e, 1000), new AsyncEvent("1", 1L), KEY);
+        this.executor.execute(e -> asyncEventConsumer.accept(e, 1000), new AsyncEvent("2", 2L), 1);
+        this.executor.execute(e -> asyncEventConsumer.accept(e, 1000), new AsyncEvent("3", 3L), 2);
+        this.executor.execute(e -> asyncEventConsumer.accept(e, 1000), new AsyncEvent("4", 4L), 3);
+        this.executor.execute(e -> asyncEventConsumer.accept(e, 1000), new AsyncEvent("5", 5L), 4);
+
+        executor.shutdown();
+
+        while (!executor.isTerminated()){ }
+
+        assertEquals(1, completedTasks.get(0));
+        assertEquals(2, completedTasks.get(1));
+        assertEquals(3, completedTasks.get(2));
+        assertEquals(4, completedTasks.get(3));
+        assertEquals(5, completedTasks.get(4));
+    }
+
+    @Test
+    public void doNotLostEventsDuringShutdown() {//All events should be processed or available throw OrderedExecutor#getUnprocessedEvents method
+        this.executor = new OrderedExecutor();
+        this.executor.execute(e -> asyncEventConsumer.accept(e, 500), new AsyncEvent("1", 1L), KEY);
+        this.executor.execute(e -> asyncEventConsumer.accept(e, 500), new AsyncEvent("2", 2L), 1);
+        this.executor.execute(e -> asyncEventConsumer.accept(e, 500), new AsyncEvent("3", 3L), KEY);
+        this.executor.execute(e -> asyncEventConsumer.accept(e, 500), new AsyncEvent("4", 4L), 1);
+        this.executor.execute(e -> asyncEventConsumer.accept(e, 500), new AsyncEvent("5", 5L), KEY);
+
+        executor.shutdown();
+        while (!executor.isTerminated()){ }
+
+        completedTasks.addAll(executor.getUnprocessedEvents().stream().map(AsyncEvent::getObjectId).collect(Collectors.toList()));
+
+        assertEquals(1, completedTasks.get(0));
+        assertEquals(2, completedTasks.get(1));
+        assertEquals(3, completedTasks.get(2));
+        assertEquals(4, completedTasks.get(3));
+        assertEquals(5, completedTasks.get(4));
     }
 
     @Test(expected = IllegalStateException.class)

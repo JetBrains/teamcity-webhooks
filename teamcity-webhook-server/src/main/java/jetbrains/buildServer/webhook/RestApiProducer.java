@@ -19,7 +19,7 @@ public class RestApiProducer implements WebhookDataProducer {
 
     private enum EventType {
         AGENT(Arrays.asList(AGENT_REGISTRED, AGENT_UNREGISTERED, AGENT_REMOVED), "/app/rest/agents/id:"),
-        BUILD(Arrays.asList(BUILD_STARTED, BUILD_FINISHED, BUILD_INTERRUPTED), "/app/rest/builds/promotionId:");
+        BUILD(Arrays.asList(BUILD_STARTED, BUILD_FINISHED, BUILD_INTERRUPTED, CHANGES_LOADED), "/app/rest/builds/promotionId:");
 
         private String restApiUrl;
         private List<String> events;

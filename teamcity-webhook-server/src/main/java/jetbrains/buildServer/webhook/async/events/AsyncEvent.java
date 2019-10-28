@@ -3,13 +3,15 @@ package jetbrains.buildServer.webhook.async.events;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.Serializable;
+
 import static java.lang.String.format;
 
 /**
  * Simple event used by {@link jetbrains.buildServer.webhook.async.AsyncEventDispatcher}
  * to allows listeners {@link jetbrains.buildServer.webhook.async.AsyncEventListener} handle it asynchronously
  */
-public class AsyncEvent {
+public class AsyncEvent implements Serializable {
     private final String eventType;
     private final Long objectId;
     private final String projectId;
