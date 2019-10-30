@@ -2,23 +2,16 @@ package jetbrains.buildServer.webhook.async;
 
 import com.intellij.openapi.diagnostic.Logger;
 import jetbrains.buildServer.serverSide.TeamCityProperties;
-import jetbrains.buildServer.webhook.async.events.AsyncEvent;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.function.Consumer;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-@Component
-public class OrderedExecutor {
+public class OrderedExecutor<T extends Runnable> {
 
     private static final Logger LOG = Logger.getInstance(OrderedExecutor.class.getName());
     private final ExecutorService executor;
@@ -59,23 +52,15 @@ public class OrderedExecutor {
         tasks = new LinkedBlockingQueue<>(internalQueueCapacity);
     }
 
-    void execute(@NotNull Consumer<AsyncEvent> task, @NotNull AsyncEvent event, Object key) {
+    void execute(@NotNull T task, Object key) {
         synchronized (submittedKeys) {
             if (isShutdown) {
                 shutdownRejectExecution();
             }
-
+            final OrderedTask orderedTask = new OrderedTask(task, key);
+            tasks.add(orderedTask);
             if (!submittedKeys.contains(key)) {
-                try {
-                    executor.submit(new OrderedTask(task, event, key));
-                    submittedKeys.add(key);
-                } catch (RejectedExecutionException ex) {
-                    if (executor.isShutdown())
-                        shutdownRejectExecution();
-                    tasks.add(new OrderedTask(task, event, key));
-                }
-            } else {
-                tasks.add(new OrderedTask(task, event, key));
+                submitIfPossible( orderedTask);
             }
         }
     }
@@ -92,27 +77,25 @@ public class OrderedExecutor {
         return executor.isTerminated();
     }
 
-    public List<AsyncEvent> getUnprocessedEvents() {
+    public List<T> getUnprocessedTasks() {
         return tasks.stream()
-                .map(OrderedTask::getEvent)
+                .map(OrderedTask::getRunnable)
                 .collect(Collectors.toList());
     }
 
     class OrderedTask implements Runnable {
-        private final Consumer<AsyncEvent> runnable;
-        private final AsyncEvent event;
+        private final T runnable;
         private final Object key;
 
-        OrderedTask(Consumer<AsyncEvent> runnable, AsyncEvent event, Object key) {
+        OrderedTask(T runnable, Object key) {
             this.runnable = runnable;
-            this.event = event;
             this.key = key;
         }
 
         @Override
         public void run() {
             try {
-                runnable.accept(event);
+                runnable.run();
             } catch (Throwable t) {
                 LOG.warn(t.getMessage());
             }
@@ -120,30 +103,32 @@ public class OrderedExecutor {
                 submittedKeys.remove(key);
                 if (!isShutdown) {
                     final OrderedTask nextTask = getNextTask();
-
                     if (nextTask != null) {
-                        try {
-                            executor.submit(nextTask);
-                            submittedKeys.add(nextTask.key);
-                            tasks.remove(nextTask);
-                        } catch (RejectedExecutionException ex) {
-                            if (executor.isShutdown())
-                                shutdownRejectExecution();
-                            LOG.warn(ex.getMessage());
-                        }
+                        submitIfPossible(nextTask);
                     }
                 }
             }
         }
 
-        public AsyncEvent getEvent() {
-            return event;
+        public T getRunnable() {
+            return runnable;
         }
 
         private OrderedTask getNextTask() {
             return tasks.stream()
                     .filter(t -> !submittedKeys.contains(t.key))
                     .findFirst().orElse(null);
+        }
+    }
+
+    private void submitIfPossible(OrderedTask orderedTask) {
+        try {
+            executor.submit(orderedTask);
+            submittedKeys.add(orderedTask.key);
+            tasks.remove(orderedTask);
+        } catch (RejectedExecutionException ex) {
+            if (executor.isShutdown())
+                shutdownRejectExecution();
         }
     }
 

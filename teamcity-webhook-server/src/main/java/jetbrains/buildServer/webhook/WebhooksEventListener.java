@@ -69,6 +69,12 @@ public class WebhooksEventListener implements AsyncEventListener {
         }
     }
 
+    @NotNull
+    @Override
+    public String getUniqName() {
+        return this.getClass().getName();
+    }
+
     private Integer getRetryCount(ProjectEx project) {
         Integer defaultRetryCount = 0;
         final String retryCountParameter = project.getInternalParameterValue("teamcity.internal.webhooks.retry_count", defaultRetryCount.toString());

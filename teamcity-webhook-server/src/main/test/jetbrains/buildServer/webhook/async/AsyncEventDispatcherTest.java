@@ -1,88 +1,146 @@
 package jetbrains.buildServer.webhook.async;
 
+import jetbrains.buildServer.messages.XStreamHolder;
 import jetbrains.buildServer.serverSide.BuildServerListener;
 import jetbrains.buildServer.serverSide.ServerPaths;
 import jetbrains.buildServer.util.EventDispatcher;
 import jetbrains.buildServer.util.ThreadUtil;
 import jetbrains.buildServer.webhook.async.events.AsyncEvent;
+import jetbrains.buildServer.xstream.XStreamFile;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
-import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
+
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AsyncEventDispatcherTest {
 
+    private final String EVENT_NAME = "EVENT";
     private AsyncEventDispatcher dispatcher;
 
     private EventDispatcher<BuildServerListener> serverEventDispatcher = EventDispatcher.create(BuildServerListener.class);
     @Mock
     private ServerPaths serverPaths;
-    private OrderedExecutor executor;
 
     private final String mockPluginDataDirectory = "src/main/test/resources";
     private final Path unprocessedEventsFilePath = Paths.get(mockPluginDataDirectory + "/webhooks/unprocessedAsyncEvents.bak");
+    private final List<AsyncEvent> result = new CopyOnWriteArrayList<>();
+    private final AsyncEventListener listener = createListener("testListener", result);
 
     @Before
     public void setUp() {
-        executor = new OrderedExecutor();
         when(serverPaths.getPluginDataDirectory()).thenReturn(Paths.get(mockPluginDataDirectory).toFile());
-        dispatcher = spy(new AsyncEventDispatcher(serverEventDispatcher, serverPaths, executor));
+        dispatcher = spy(new AsyncEventDispatcher(serverEventDispatcher, serverPaths));
+        dispatcher.subscribe(EVENT_NAME, listener);
+        result.clear();
     }
 
     @Test
-    public void testUnprocessedEventsAreSavedDuringServerShutdown() throws IOException, ClassNotFoundException {
-        List<Long> processedEvents = new CopyOnWriteArrayList<>();
-        dispatcher.subscribe("EVENT", event -> {
-            ThreadUtil.sleep(100);
-            processedEvents.add(event.getObjectId());
-        });
-
+    public void testUnprocessedEventsAreSavedDuringServerShutdown() {
+        List<AsyncEvent> originalEvents = new ArrayList<>();
         for (long i = 0; i < 20; i++)
-            dispatcher.publish(new AsyncEvent("EVENT", i));
+            originalEvents.add(new AsyncEvent(EVENT_NAME, new Random().nextLong()));
+
+        originalEvents.forEach(dispatcher::publish);
 
         serverEventDispatcher.getMulticaster().serverShutdown();
 
         while (!dispatcher.isTerminated()){ }
 
-        FileInputStream fileInputStream = new FileInputStream(unprocessedEventsFilePath.toFile());
-        ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
+        XStreamFile<List<AsyncEventDispatcher.TaskInfo>> file = new XStreamFile<>(unprocessedEventsFilePath.toFile(), new XStreamHolder());
+        List<AsyncEventDispatcher.TaskInfo> queue = file.deserialize().stream().filter( i -> i.getRunnerName().equals(listener.getUniqName())).collect(Collectors.toList());
 
-        List<AsyncEvent> queue = (List<AsyncEvent>) objectInputStream.readObject();
-
-        for (int i = processedEvents.size(), j = 0; i < 20 ; i++, j++)
-            assertEquals(Long.valueOf(i), queue.get(j).getObjectId());
+        for (int i = result.size(), j = 0; i < 20 ; i++, j++) {
+            assertEquals(originalEvents.get(i).getObjectId(), queue.get(j).getEvent().getObjectId());
+        }
     }
 
     @Test
-    public void testUnprocessedEventsReplayDuringStartup() throws IOException {
-        List<AsyncEvent> events = new CopyOnWriteArrayList<>();
+    public void testUnprocessedEventsReplayDuringStartup() {
+        List<AsyncEventDispatcher.TaskInfo> events = new CopyOnWriteArrayList<>();
         for (long i = 0; i < 20; i++)
-            events.add(new AsyncEvent("EVENT", i));
+            events.add(new AsyncEventDispatcher.TaskInfo(listener.getUniqName(), new AsyncEvent(EVENT_NAME, new Random().nextLong())));
 
-        FileOutputStream fileOutputStream = new FileOutputStream(unprocessedEventsFilePath.toFile(), false);
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
-        objectOutputStream.writeObject(events);
-
-        List<AsyncEvent> result = new CopyOnWriteArrayList<>();
-        AsyncEventListener listener = result::add;
-
-        dispatcher.subscribe("EVENT", listener);
+        XStreamFile<List<AsyncEventDispatcher.TaskInfo>> file = new XStreamFile<>(unprocessedEventsFilePath.toFile(), new XStreamHolder());
+        file.serialize(events, true);
 
         serverEventDispatcher.getMulticaster().serverStartup();
 
-        ThreadUtil.sleep(200);
+        ThreadUtil.sleep(500);
 
-        for (int i = 0; i < 20; i++)
-            assertEquals(events.get(i).getObjectId(), result.get(i).getObjectId());
+        assertEquals(events.size(), result.size());
+        for (int i = 0; i < 20; i++) {
+            assertEquals(events.get(i).getEvent().getObjectId(), result.get(i).getObjectId());
+        }
+    }
+
+    @Test
+    public void testUnprocessedEventsReplayForParticularListenerDuringStartup() {
+        List<AsyncEvent> resultForSecondListener = new CopyOnWriteArrayList<>();
+        AsyncEventListener secondListener = createListener("secondListener", resultForSecondListener);
+        dispatcher.subscribe(EVENT_NAME, secondListener);
+
+        List<AsyncEventDispatcher.TaskInfo> events = new CopyOnWriteArrayList<>();
+        for (long i = 0; i < 20; i++) {
+            events.add(new AsyncEventDispatcher.TaskInfo(listener.getUniqName(), new AsyncEvent(EVENT_NAME, new Random().nextLong())));
+        }
+
+        XStreamFile<List<AsyncEventDispatcher.TaskInfo>> file = new XStreamFile<>(unprocessedEventsFilePath.toFile(), new XStreamHolder());
+        file.serialize(events, true);
+
+        serverEventDispatcher.getMulticaster().serverStartup();
+
+        ThreadUtil.sleep(500);
+
+        assertEquals(events.size(), result.size());
+        assertEquals(0, resultForSecondListener.size());
+        for (int i = 0; i < 20; i++) {
+            assertEquals(events.get(i).getEvent().getObjectId(), result.get(i).getObjectId());
+        }
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testCannotSubscribeTwoListenersWithTheSameName() {
+        dispatcher.subscribe(EVENT_NAME, new AsyncEventListener() {
+            @Override
+            public void handle(AsyncEvent event) {
+                // do nothing
+            }
+
+            @NotNull
+            @Override
+            public String getUniqName() {
+                return "testListener";
+            }
+        });
+    }
+
+    @NotNull
+    private AsyncEventListener createListener(String name, List<AsyncEvent> result) {
+        return new AsyncEventListener() {
+            @Override
+            public void handle(AsyncEvent event) {
+                ThreadUtil.sleep(10);
+                result.add(event);
+            }
+
+            @Override
+            public String getUniqName() {
+                return name;
+            }
+        };
     }
 }
