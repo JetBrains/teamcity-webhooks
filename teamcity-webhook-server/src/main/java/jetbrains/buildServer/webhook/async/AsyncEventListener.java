@@ -29,5 +29,7 @@ public interface AsyncEventListener extends EventListener {
      * @return unique listener name
      */
     @NotNull
-    String getUniqName();
+    default String getUniqName() {
+        return this.getClass().getName();
+    }
 }
