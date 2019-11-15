@@ -4,7 +4,7 @@
   <parent>
     <artifactId>teamcity-webhook</artifactId>
     <groupId>org.jetbrains.teamcity</groupId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0</version>
   </parent>
   <artifactId>teamcity-webhook-server</artifactId>
   <packaging>jar</packaging>
