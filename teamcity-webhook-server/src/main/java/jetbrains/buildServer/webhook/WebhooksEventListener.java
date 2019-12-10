@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -33,6 +34,7 @@ import static java.lang.String.format;
 public class WebhooksEventListener implements AsyncEventListener {
 
     private static final Logger LOG = Logger.getInstance(WebhooksEventListener.class.getName());
+    private ConcurrentHashMap<String, String> lastErrorCodeMap = new ConcurrentHashMap<>();
 
     private final WebhookDataProducer jsonProducer;
     private final SBuildServer buildServer;
@@ -51,6 +53,7 @@ public class WebhooksEventListener implements AsyncEventListener {
 
     @Override
     public void handle(AsyncEvent event) {
+        final String projectKey = event.getProjectId() != null ? event.getProjectId() : "<Root Project>";
         try {
             ProjectEx project = getRelatedProject(event);
             if (isWebhooksEnabled(project, event.getEventType())) {
@@ -58,14 +61,17 @@ public class WebhooksEventListener implements AsyncEventListener {
                 if (jsonProducer.support(event)) {
                     String eventData = jsonProducer.getJson(event, getResponseFields(project, event.getEventType()));
                     sendWithRetry(webhooksUrl, getWebhooksCredential(project), eventData, getRetryCount(project));
+                    lastErrorCodeMap.remove(projectKey);
                 } else {
                     LOG.warn("Unsupported event type " + event.getEventType());
                 }
             }
+        } catch (WebhookSendException ex) {
+            warn(projectKey, ex.getReason(), ex.getMessage());
         } catch (ProjectNotFoundException ex) {
-            LOG.warn("Related project not found for event " + event);
+            warn(projectKey, "PROJECT_NOT_FOUND", "Related project not found for event " + event);
         } catch (Throwable throwable) {
-            LOG.error(throwable);
+            warn(projectKey, throwable.getClass().getName(), throwable.getMessage());
         }
     }
 
@@ -106,7 +112,7 @@ public class WebhooksEventListener implements AsyncEventListener {
     private String getWebhooksUrl(ProjectEx project) {
         final String urlParameter = project.getInternalParameterValue("teamcity.internal.webhooks.url", "");
         if (urlParameter.isEmpty())
-            throw new IllegalStateException("Webhooks url is not defined for project " + project.getName());
+            throw new WebhookSendException("WEBHOOKS_URL_IS_NOT_DEFINED", "Webhooks url is not defined for project " + project.getName());
         return urlParameter;
     }
 
@@ -127,16 +133,20 @@ public class WebhooksEventListener implements AsyncEventListener {
         AtomicInteger retryCountRef = new AtomicInteger(retryCount);
 
         Consumer<Exception> exception = (ex) -> {
-            if (retryCountRef.get() > 0)
+            if (retryCountRef.get() > 0) {
                 sendWithRetry(uri, simpleCredentials, json, retryCountRef.decrementAndGet());
-            else
-                LOG.error(format("Sending webhook to %s failed with exception %s. Webhook info: %s.", uri, ex.getMessage(), json));
+            }
+             else {
+                if (ex instanceof WebhookSendException)
+                    throw (WebhookSendException) ex;
+                throw new WebhookSendException(ex.getClass().getName(), format("Sending webhook to %s failed with exception %s.", uri, ex.getMessage()));
+            }
         };
         BiConsumer<Integer, String> error = (code, message) -> {
             if (retryCountRef.get() > 0)
                 sendWithRetry(uri, simpleCredentials, json, retryCountRef.decrementAndGet());
             else
-                LOG.error(format("Sending webhook to %s failed with HTTP code: %s %s. Webhook info: %s.", uri, code, message, json));
+                throw new WebhookSendException(String.valueOf(code), format("Sending webhook to %s failed with HTTP code: %s %s.", uri, code, message));
         };
 
         try {
@@ -155,7 +165,29 @@ public class WebhooksEventListener implements AsyncEventListener {
             requestHandler.doRequest(request.build());
 
         } catch (URISyntaxException ex) {
-            LOG.error(format("Sending webhook to %s failed because of wrong URL syntax. Exception message: %s. Webhook info: %s.", uri, ex.getMessage(), json));
+            throw new WebhookSendException(uri, format("Sending webhook to %s failed because of wrong URL syntax. Exception message: %s.", uri, ex.getMessage()));
+        }
+    }
+
+    private void warn(String problemSource, String problemCode, String message) {
+        if (!problemCode.equals(lastErrorCodeMap.get(problemSource))) {
+             LOG.warn(format("%s The following failures with the same problem won't be logged for project %s.", message, problemSource));
+            lastErrorCodeMap.put(problemSource, problemCode);
+        } else if (LOG.isDebugEnabled()) {
+            LOG.debug(message);
+        }
+    }
+
+    public static class WebhookSendException extends RuntimeException {
+        private final String reason;
+
+        public WebhookSendException(final String reason, final String message) {
+            super(message);
+            this.reason = reason;
+        }
+
+        public String getReason() {
+            return reason;
         }
     }
 }

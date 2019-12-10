@@ -4,6 +4,7 @@ import jetbrains.buildServer.BuildProblemData;
 import jetbrains.buildServer.plugins.PluginLifecycleListenerAdapter;
 import jetbrains.buildServer.plugins.impl.PluginLifecycleEventDispatcher;
 import jetbrains.buildServer.serverSide.*;
+import jetbrains.buildServer.users.User;
 import jetbrains.buildServer.util.EventDispatcher;
 import jetbrains.buildServer.webhook.async.AsyncEventDispatcher;
 import jetbrains.buildServer.webhook.async.events.AsyncEvent;
@@ -26,6 +27,7 @@ public class WebhooksManager {
         static final String BUILD_INTERRUPTED = "BUILD_INTERRUPTED";
         static final String CHANGES_LOADED = "CHANGES_LOADED";
         static final String BUILD_TYPE_ADDED_TO_QUEUE = "BUILD_TYPE_ADDED_TO_QUEUE";
+        static final String BUILD_REMOVED_FROM_QUEUE = "BUILD_REMOVED_FROM_QUEUE";
         static final String BUILD_PROBLEMS_CHANGED = "BUILD_PROBLEMS_CHANGED";
     }
 
@@ -35,7 +37,7 @@ public class WebhooksManager {
                            WebhooksEventListener eventListener) {
 
         asyncEventDispatcher.subscribe(Arrays.asList(AGENT_REGISTRED, AGENT_UNREGISTERED, AGENT_REMOVED
-                , BUILD_STARTED, BUILD_FINISHED, BUILD_INTERRUPTED, CHANGES_LOADED, BUILD_TYPE_ADDED_TO_QUEUE, BUILD_PROBLEMS_CHANGED), eventListener);
+                , BUILD_STARTED, BUILD_FINISHED, BUILD_INTERRUPTED, CHANGES_LOADED, BUILD_TYPE_ADDED_TO_QUEUE, BUILD_REMOVED_FROM_QUEUE, BUILD_PROBLEMS_CHANGED), eventListener);
 
         dispatcher.addListener(new PluginLifecycleListenerAdapter() {
             @Override
@@ -64,6 +66,13 @@ public class WebhooksManager {
             public void buildTypeAddedToQueue(@NotNull final SQueuedBuild queuedBuild) {
                 final BuildPromotion buildPromotion = queuedBuild.getBuildPromotion();
                 asyncEventDispatcher.publish(new AsyncEvent(BUILD_TYPE_ADDED_TO_QUEUE, buildPromotion.getId(), buildPromotion.getProjectId()));
+        }
+
+            public void buildRemovedFromQueue(@NotNull SQueuedBuild queuedBuild,
+                                              final User user,
+                                              final String comment) {
+                final BuildPromotion buildPromotion = queuedBuild.getBuildPromotion();
+                asyncEventDispatcher.publish(new AsyncEvent(BUILD_REMOVED_FROM_QUEUE, buildPromotion.getId(), buildPromotion.getProjectId()));
             }
 
             @Override
