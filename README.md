@@ -2,6 +2,9 @@
 
 TeamCity server-side plugin that allows you to send WebHooks asynchronously to third-party systems.
 
+[![official project](http://jb.gg/badges/official.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
+[![Build Status](https://teamcity.jetbrains.com/app/rest/builds/buildType:(id:TeamCityPluginsByJetBrains_TeamcityWebhooks_Build)/statusIcon.svg)](https://teamcity.jetbrains.com/viewType.html?buildTypeId=TeamCityPluginsByJetBrains_TeamcityWebhooks_Build)
+
 ## Getting Started
 
 Download links:
