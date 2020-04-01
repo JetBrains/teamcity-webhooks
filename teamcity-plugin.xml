@@ -3,7 +3,7 @@
   <info>
     <name>teamcity-webhook</name>
     <display-name>WebHooks support</display-name>
-    <version>1.0</version>
+    <version>@Version@</version>
     <description>Support TeamCity WebHooks</description>
     <vendor>
       <name>JetBrains, s.r.o</name>

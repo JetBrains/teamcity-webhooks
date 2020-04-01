@@ -36,8 +36,8 @@ public class AsyncEventDispatcher {
 
     public AsyncEventDispatcher(EventDispatcher<BuildServerListener> serverEventDispatcher,
                                 ServerPaths serverPaths) {
-        this.unprocessedEventsFilePath = Paths.get(serverPaths.getPluginDataDirectory() + "/webhooks/unprocessedAsyncEvents.bak");
-        this.orderedExecutor = new OrderedExecutor<>();
+        unprocessedEventsFilePath = Paths.get(serverPaths.getPluginDataDirectory() + "/webhooks/unprocessedAsyncEvents.bak");
+        orderedExecutor = new OrderedExecutor<>();
 
         serverEventDispatcher.addListener(new BuildServerAdapter() {
 
