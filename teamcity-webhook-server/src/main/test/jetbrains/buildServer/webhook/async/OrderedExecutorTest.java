@@ -9,7 +9,8 @@ import org.junit.Test;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.assertEquals;
+
 
 public class OrderedExecutorTest {
 
@@ -33,9 +34,9 @@ public class OrderedExecutorTest {
 
         ThreadUtil.sleep(600);
 
-        assertEquals(1, completedTasks.get(0));
-        assertEquals(2, completedTasks.get(1));
-        assertEquals(3, completedTasks.get(2));
+        assertEquals(1, completedTasks.get(0).longValue());
+        assertEquals(2, completedTasks.get(1).longValue());
+        assertEquals(3, completedTasks.get(2).longValue());
     }
 
     @Test
@@ -48,9 +49,9 @@ public class OrderedExecutorTest {
 
         ThreadUtil.sleep(2000);
 
-        assertEquals(1, completedTasks.get(0));
-        assertEquals(2, completedTasks.get(1));
-        assertEquals(3, completedTasks.get(2));
+        assertEquals(1, completedTasks.get(0).longValue());
+        assertEquals(2, completedTasks.get(1).longValue());
+        assertEquals(3, completedTasks.get(2).longValue());
     }
 
     @Test
@@ -65,11 +66,11 @@ public class OrderedExecutorTest {
 
         ThreadUtil.sleep(1000);
 
-        assertEquals(1, completedTasks.get(0));
-        assertEquals(2, completedTasks.get(1));
-        assertEquals(3, completedTasks.get(2));
-        assertEquals(4, completedTasks.get(3));
-        assertEquals(5, completedTasks.get(4));
+        assertEquals(1, completedTasks.get(0).longValue());
+        assertEquals(2, completedTasks.get(1).longValue());
+        assertEquals(3, completedTasks.get(2).longValue());
+        assertEquals(4, completedTasks.get(3).longValue());
+        assertEquals(5, completedTasks.get(4).longValue());
     }
 
     @Test
@@ -85,11 +86,11 @@ public class OrderedExecutorTest {
 
         while (!executor.isTerminated()){ }
 
-        assertEquals(1, completedTasks.get(0));
-        assertEquals(2, completedTasks.get(1));
-        assertEquals(3, completedTasks.get(2));
-        assertEquals(4, completedTasks.get(3));
-        assertEquals(5, completedTasks.get(4));
+        assertEquals(1, completedTasks.get(0).longValue());
+        assertEquals(2, completedTasks.get(1).longValue());
+        assertEquals(3, completedTasks.get(2).longValue());
+        assertEquals(4, completedTasks.get(3).longValue());
+        assertEquals(5, completedTasks.get(4).longValue());
     }
 
     @Test
@@ -106,11 +107,11 @@ public class OrderedExecutorTest {
 
         completedTasks.addAll(executor.getUnprocessedTasks().stream().map(t -> t.getEvent().getObjectId()).collect(Collectors.toList()));
 
-        assertEquals(1, completedTasks.get(0));
-        assertEquals(2, completedTasks.get(1));
-        assertEquals(3, completedTasks.get(2));
-        assertEquals(4, completedTasks.get(3));
-        assertEquals(5, completedTasks.get(4));
+        assertEquals(1, completedTasks.get(0).longValue());
+        assertEquals(2, completedTasks.get(1).longValue());
+        assertEquals(3, completedTasks.get(2).longValue());
+        assertEquals(4, completedTasks.get(3).longValue());
+        assertEquals(5, completedTasks.get(4).longValue());
     }
 
     @Test(expected = IllegalStateException.class)

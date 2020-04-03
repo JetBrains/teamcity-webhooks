@@ -2,6 +2,7 @@ package jetbrains.buildServer.webhook.async;
 
 import com.intellij.openapi.diagnostic.Logger;
 import jetbrains.buildServer.serverSide.TeamCityProperties;
+import jetbrains.buildServer.util.executors.ExecutorsFactory;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashSet;
@@ -24,7 +25,7 @@ public class OrderedExecutor<T extends Runnable> {
      * Create OrderedExecutor with {@link Executors#newSingleThreadExecutor()} as default internal events handling executor
      */
     public OrderedExecutor() {
-        this(Executors.newSingleThreadExecutor(), true, TeamCityProperties.getInteger("teamcity.threadpool.ordered_executor.queue.capacity", 10_000));
+        this(ExecutorsFactory.newSingleThreadedExecutor("webhooks-executor"), true, TeamCityProperties.getInteger("teamcity.threadpool.ordered_executor.queue.capacity", 10_000));
     }
 
     /**

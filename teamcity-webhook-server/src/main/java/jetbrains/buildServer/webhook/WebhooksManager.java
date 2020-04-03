@@ -1,6 +1,7 @@
 package jetbrains.buildServer.webhook;
 
 import jetbrains.buildServer.BuildProblemData;
+import jetbrains.buildServer.messages.Status;
 import jetbrains.buildServer.plugins.PluginLifecycleListenerAdapter;
 import jetbrains.buildServer.plugins.impl.PluginLifecycleEventDispatcher;
 import jetbrains.buildServer.serverSide.*;
@@ -18,7 +19,7 @@ import static jetbrains.buildServer.webhook.WebhooksManager.EventNames.*;
 @Component
 public class WebhooksManager {
 
-    static final class EventNames {
+    public static final class EventNames {
         static final String AGENT_REGISTRED = "AGENT_REGISTRED";
         static final String AGENT_UNREGISTERED = "AGENT_UNREGISTERED";
         static final String AGENT_REMOVED = "AGENT_REMOVED";
@@ -29,6 +30,8 @@ public class WebhooksManager {
         static final String BUILD_TYPE_ADDED_TO_QUEUE = "BUILD_TYPE_ADDED_TO_QUEUE";
         static final String BUILD_REMOVED_FROM_QUEUE = "BUILD_REMOVED_FROM_QUEUE";
         static final String BUILD_PROBLEMS_CHANGED = "BUILD_PROBLEMS_CHANGED";
+        static final String MARKED_AS_SUCCESSFUL = "MARKED_AS_SUCCESSFUL";
+        static final String FAILURE_DETECTED = "FAILURE_DETECTED";
     }
 
     public WebhooksManager(PluginLifecycleEventDispatcher dispatcher,
@@ -37,7 +40,7 @@ public class WebhooksManager {
                            WebhooksEventListener eventListener) {
 
         asyncEventDispatcher.subscribe(Arrays.asList(AGENT_REGISTRED, AGENT_UNREGISTERED, AGENT_REMOVED
-                , BUILD_STARTED, BUILD_FINISHED, BUILD_INTERRUPTED, CHANGES_LOADED, BUILD_TYPE_ADDED_TO_QUEUE, BUILD_REMOVED_FROM_QUEUE, BUILD_PROBLEMS_CHANGED), eventListener);
+          , BUILD_STARTED, BUILD_FINISHED, BUILD_INTERRUPTED, CHANGES_LOADED, BUILD_TYPE_ADDED_TO_QUEUE, BUILD_REMOVED_FROM_QUEUE, BUILD_PROBLEMS_CHANGED), eventListener);
 
         dispatcher.addListener(new PluginLifecycleListenerAdapter() {
             @Override
@@ -49,24 +52,24 @@ public class WebhooksManager {
         serverEventDispatcher.addListener(new BuildServerAdapter() {
             @Override
             public void agentRegistered(@NotNull SBuildAgent agent, final long currentlyRunningBuildId) {
-                asyncEventDispatcher.publish(new AsyncEvent(AGENT_REGISTRED, (long) agent.getId()));
+                asyncEventDispatcher.publish(new AsyncEvent(AGENT_REGISTRED, (long)agent.getId()));
             }
 
             @Override
             public void agentUnregistered(@NotNull SBuildAgent agent) {
-                asyncEventDispatcher.publish(new AsyncEvent(AGENT_UNREGISTERED, (long) agent.getId()));
+                asyncEventDispatcher.publish(new AsyncEvent(AGENT_UNREGISTERED, (long)agent.getId()));
             }
 
             @Override
             public void agentRemoved(@NotNull SBuildAgent agent) {
-                asyncEventDispatcher.publish(new AsyncEvent(AGENT_REMOVED, (long) agent.getId()));
+                asyncEventDispatcher.publish(new AsyncEvent(AGENT_REMOVED, (long)agent.getId()));
             }
 
             @Override
             public void buildTypeAddedToQueue(@NotNull final SQueuedBuild queuedBuild) {
                 final BuildPromotion buildPromotion = queuedBuild.getBuildPromotion();
                 asyncEventDispatcher.publish(new AsyncEvent(BUILD_TYPE_ADDED_TO_QUEUE, buildPromotion.getId(), buildPromotion.getProjectId()));
-        }
+            }
 
             public void buildRemovedFromQueue(@NotNull SQueuedBuild queuedBuild,
                                               final User user,
@@ -100,6 +103,16 @@ public class WebhooksManager {
                                              @NotNull final List<BuildProblemData> before,
                                              @NotNull final List<BuildProblemData> after) {
                 asyncEventDispatcher.publish(new AsyncEvent(BUILD_PROBLEMS_CHANGED, build.getBuildPromotion().getId(), build.getProjectId()));
+                if (!before.isEmpty() && after.isEmpty()) {
+                    asyncEventDispatcher.publish(new AsyncEvent(MARKED_AS_SUCCESSFUL, build.getBuildPromotion().getId(), build.getProjectId()));
+                }
+            }
+
+            @Override
+            public void buildChangedStatus(@NotNull final SRunningBuild build, Status oldStatus, Status newStatus) {
+                if (oldStatus.isFailed() || !newStatus.isFailed()) // we are supposed to report failures only
+                    return;
+                asyncEventDispatcher.publish(new AsyncEvent(FAILURE_DETECTED, build.getBuildPromotion().getId(), build.getProjectId()));
             }
         });
     }
