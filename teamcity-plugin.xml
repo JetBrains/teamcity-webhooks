@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <teamcity-plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:schemas-jetbrains-com:teamcity-plugin-v1-xml">
   <info>
-    <name>teamcity-webhook</name>
+    <name>webhooks</name>
     <display-name>WebHooks support</display-name>
     <version>@Version@</version>
     <description>Support TeamCity WebHooks</description>
