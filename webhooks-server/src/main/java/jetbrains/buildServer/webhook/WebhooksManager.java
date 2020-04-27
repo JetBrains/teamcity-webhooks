@@ -106,6 +106,9 @@ public class WebhooksManager {
                 if (!before.isEmpty() && after.isEmpty()) {
                     asyncEventDispatcher.publish(new AsyncEvent(MARKED_AS_SUCCESSFUL, build.getBuildPromotion().getId(), build.getProjectId()));
                 }
+                if (before.isEmpty() && !after.isEmpty() && build.isFinished()) {
+                    asyncEventDispatcher.publish(new AsyncEvent(FAILURE_DETECTED, build.getBuildPromotion().getId(), build.getProjectId()));
+                }
             }
 
             @Override
