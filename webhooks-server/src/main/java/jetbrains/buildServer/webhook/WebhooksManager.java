@@ -61,8 +61,8 @@ public class WebhooksManager {
             }
 
             @Override
-            public void agentRemoved(@NotNull SBuildAgent agent) {
-                asyncEventDispatcher.publish(new AsyncEvent(AGENT_REMOVED, (long)agent.getId()));
+            public void agentRemoved(int agentId) {
+                asyncEventDispatcher.publish(new AsyncEvent(AGENT_REMOVED, (long)agentId));
             }
 
             @Override
