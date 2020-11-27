@@ -61,10 +61,10 @@ public class WebhooksManager {
             }
 
             @Override
-            public void agentRemoved(int agentId) {
-                asyncEventDispatcher.publish(new AsyncEvent(AGENT_REMOVED, (long)agentId));
+            public void agentRemoved(@NotNull SBuildAgent agent) {
+                asyncEventDispatcher.publish(new AsyncEvent(AGENT_REMOVED, (long)agent.getId()));
             }
-
+            
             @Override
             public void buildTypeAddedToQueue(@NotNull final SQueuedBuild queuedBuild) {
                 final BuildPromotion buildPromotion = queuedBuild.getBuildPromotion();
