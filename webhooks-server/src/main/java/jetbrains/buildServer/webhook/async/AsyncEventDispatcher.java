@@ -29,7 +29,6 @@ import static java.lang.String.format;
 public class AsyncEventDispatcher {
 
     private static final Logger LOG = Logger.getInstance(AsyncEventDispatcher.class.getName());
-    public static final String WEBHOOKS_UNPROCESSED_ASYNC_EVENTS_FILE = "/webhooks/unprocessedAsyncEvents.bak";
 
     private final Map<String, List<AsyncEventListener>> listeners = new ConcurrentHashMap<>();
     private final OrderedExecutor<AsyncEventHandlingTask> orderedExecutor;
@@ -37,7 +36,7 @@ public class AsyncEventDispatcher {
 
     public AsyncEventDispatcher(EventDispatcher<BuildServerListener> serverEventDispatcher,
                                 ServerPaths serverPaths) {
-        unprocessedEventsFilePath = Paths.get(serverPaths.getPluginDataDirectory() + WEBHOOKS_UNPROCESSED_ASYNC_EVENTS_FILE);
+        unprocessedEventsFilePath = Paths.get(serverPaths.getPluginDataDirectory() + "/webhooks/unprocessedAsyncEvents.bak");
         orderedExecutor = new OrderedExecutor<>();
 
         serverEventDispatcher.addListener(new BuildServerAdapter() {

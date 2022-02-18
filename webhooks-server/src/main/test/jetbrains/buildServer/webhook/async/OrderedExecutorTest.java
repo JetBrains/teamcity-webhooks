@@ -3,8 +3,8 @@ package jetbrains.buildServer.webhook.async;
 import jetbrains.buildServer.util.ThreadUtil;
 import jetbrains.buildServer.webhook.async.events.AsyncEvent;
 import org.jetbrains.annotations.NotNull;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -12,16 +12,15 @@ import java.util.stream.Collectors;
 import static org.junit.Assert.assertEquals;
 
 
-@Test
 public class OrderedExecutorTest {
 
     private OrderedExecutor<AsyncEventHandlingTask> executor;
-    private CopyOnWriteArrayList<Long> completedTasks;
+    private CopyOnWriteArrayList<Long> completedTasks = new CopyOnWriteArrayList<>();
     private final String KEY = "key";
 
-    @BeforeMethod
+    @After
     public void cleanUp() {
-        completedTasks = new CopyOnWriteArrayList<>();
+        completedTasks.clear();
     }
 
     @Test
@@ -115,7 +114,7 @@ public class OrderedExecutorTest {
         assertEquals(5, completedTasks.get(4).longValue());
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    @Test(expected = IllegalStateException.class)
     public void rejectIfInternalAndOrderedExecutorQueuesAreTooSmall() {
         final ThreadPoolExecutor internalExecutor = new ThreadPoolExecutor(1, 1, 3, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1));
         this.executor = new OrderedExecutor<>(internalExecutor, 1);
@@ -126,7 +125,7 @@ public class OrderedExecutorTest {
         this.executor.execute(new AsyncEventHandlingTask(createListenerWithTimeout(100), new AsyncEvent("4", 4L)), KEY);
     }
 
-    @Test(expectedExceptions = RejectedExecutionException.class)
+    @Test(expected = RejectedExecutionException.class)
     public void rejectAfterExecutorShutdown() {
         executor = new OrderedExecutor<>(Executors.newSingleThreadExecutor(), 2);
 
