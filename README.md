@@ -7,13 +7,7 @@ TeamCity server-side plugin that allows you to send WebHooks asynchronously to t
 
 ## Getting Started
 
-Download links:
-
-SSH clone URL: ssh://git@git.jetbrains.team/teamcity-webhooks.git
-
-HTTPS clone URL: https://git.jetbrains.team/teamcity-webhooks.git
-
-
+HTTPS clone URL: [https://github.com/JetBrains/teamcity-webhooks.git](https://github.com/JetBrains/teamcity-webhooks.git)
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
