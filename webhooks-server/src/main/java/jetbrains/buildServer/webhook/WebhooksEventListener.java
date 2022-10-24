@@ -2,6 +2,7 @@ package jetbrains.buildServer.webhook;
 
 import com.intellij.openapi.diagnostic.Logger;
 import jetbrains.buildServer.http.SimpleCredentials;
+import jetbrains.buildServer.serverSide.IOGuard;
 import jetbrains.buildServer.serverSide.ProjectManager;
 import jetbrains.buildServer.serverSide.ProjectNotFoundException;
 import jetbrains.buildServer.serverSide.SBuildServer;
@@ -162,7 +163,7 @@ public class WebhooksEventListener implements AsyncEventListener {
                     .onException(exception)
                     .onErrorResponse(error);
 
-            requestHandler.doRequest(request.build());
+            IOGuard.allowNetworkCall(() -> requestHandler.doRequest(request.build()));
 
         } catch (URISyntaxException ex) {
             throw new WebhookSendException(uri, format("Sending webhook to %s failed because of wrong URL syntax. Exception message: %s.", uri, ex.getMessage()));
