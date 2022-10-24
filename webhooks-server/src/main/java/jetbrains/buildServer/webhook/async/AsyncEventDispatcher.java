@@ -25,6 +25,7 @@ import static java.lang.String.format;
 /**
  * Allows to publish simple events to all subscribed listeners asynchronously
  * with keeping order of execution events per {@link AsyncEventListener#getSyncKey()}
+ * @deprecated since 2022.10, use {@link jetbrains.buildServer.serverSide.impl.events.async.AsyncEventDispatcher} from teamcity core
  */
 @Component
 public class AsyncEventDispatcher {
