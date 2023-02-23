@@ -44,5 +44,12 @@
       </library>
     </orderEntry>
     <orderEntry type="module" module-name="test-api" />
+    <orderEntry type="library" name="annotations.jar" level="project" />
+    <orderEntry type="module" module-name="messages" />
+    <orderEntry type="module" module-name="logging" />
+    <orderEntry type="module" module-name="server-model" />
+    <orderEntry type="module" module-name="server-openapi-vcs" />
+    <orderEntry type="module" module-name="plugin-model-common" />
+    <orderEntry type="module" module-name="utils" />
   </component>
 </module>
