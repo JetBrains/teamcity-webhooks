@@ -17,9 +17,6 @@
     <repository>
       <id>local-teamcity-artifacts</id>
       <url>file://${local.repo.path}</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
     </repository>
   </repositories>
   <pluginRepositories>
